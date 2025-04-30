@@ -1,0 +1,13 @@
+/* -------------------------------------------------------
+The purpose of `multer` in this setup is to handle the initial file upload from the client and temporarily store the files on the server before they are uploaded to Cloudinary.
+
+When a user submits a request to the `/add` route, `multer` processes the incoming multipart form data, which includes both the product details and the image files. It ensures that the files are properly received and stored temporarily (e.g., on disk or in memory). Without `multer`, the server wouldn't be able to parse and access the uploaded files from the request.
+
+Once `multer` has processed the files, the `addProduct` controller takes over. It retrieves the temporary file paths provided by `multer` and uses them to upload the images to Cloudinary. After the files are successfully uploaded to Cloudinary, the temporary files handled by `multer` are no longer needed.
+
+In summary, `multer` acts as a bridge to handle the initial file upload and make the files accessible to the server, while Cloudinary provides permanent cloud storage for the images.
+------------------------------------------------------- */
+
+import multer from "multer";
+
+export const upload = multer({ storage: multer.diskStorage });
