@@ -57,7 +57,7 @@ export const AppContextProvider = ({ children }) => {
       } else {
         setIsSeller(false);
       }
-    } catch (error) {
+    } catch {
       setIsSeller(false);
     }
   };
@@ -65,7 +65,17 @@ export const AppContextProvider = ({ children }) => {
   // Fetch all Products
 
   const fetchProducts = async () => {
-    setProducts(dummyProducts);
+    try {
+      const { data } = await axios.get("/api/product/list");
+      if (data.success) {
+        // toast.success(data.message);
+        setProducts(data.products);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   // Add Product to Cart
@@ -140,6 +150,7 @@ export const AppContextProvider = ({ children }) => {
     showUserLogin,
     setShowUserLogin,
     products,
+    fetchProducts,
     currency,
     cartItems,
     addToCart,
