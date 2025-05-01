@@ -1,5 +1,7 @@
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
+import User from "../models/User.js";
+import stripe from "stripe";
 
 // Place order COD : /api/order/cod
 /* -------------------------------------------------------
@@ -44,6 +46,164 @@ export const placeOrderCOD = async (req, res) => {
     console.error(error.message);
     res.json({ success: false, message: error.message });
   }
+};
+
+// Place Order Stripe : /api/order/stripe
+/* -------------------------------------------------------
+
+The code defines an asynchronous function `placeOrderStripe` to handle the creation of an online order using the Stripe payment gateway.
+
+First, it extracts data from the request body (`userId`, `items`, `address`) and headers (`origin`). It validates the input by checking if the `address` exists and if there are items in the cart. If the validation fails, it returns a JSON response with an error message.
+
+Next, it calculates the total order amount:
+- Using the `reduce` method, it iterates over the `items` array to fetch product details (via `Product.findById`) and computes the total price based on the product's `offerPrice` and quantity.
+- A 2% tax is added to the total amount, which is then used to create a new order in the database using the `Order.create` method.
+
+The function initializes the Stripe API using the `stripe` library, passing the `STRIPE_SECRET_KEY` from environment variables. It prepares the `line_items` array required by Stripe:
+- Each item includes the product name, unit price (including tax), and quantity. The unit price is converted to the smallest currency unit (e.g., cents) by multiplying by 100.
+
+A Stripe checkout session is created using `stripeInstance.checkout.sessions.create`. The session includes:
+- `line_items` for the products,
+- `mode` set to "payment" for one-time payments,
+- `success_url` and `cancel_url` to redirect users after payment success or cancellation,
+- `metadata` to store additional information like the `orderId` and `userId`.
+
+Finally, the function returns a JSON response with the Stripe session URL if successful. If any errors occur during the process, they are caught in the `catch` block, logged to the console, and returned as a JSON response with an error message.
+
+Libraries and their options:
+- `stripe`: A library for integrating Stripe's payment gateway. It uses `process.env.STRIPE_SECRET_KEY` to authenticate API requests.
+- `reduce`: A JavaScript array method used to calculate the total order amount by iterating over the items.
+- `Math.floor`: Ensures the calculated amounts are rounded down to the nearest integer to avoid floating-point precision issues.
+
+------------------------------------------------------- */
+
+export const placeOrderStripe = async (req, res) => {
+  try {
+    const { userId, items, address } = req.body;
+    const { origin } = req.headers;
+
+    if (!address || items.length === 0) {
+      return res.json({ success: false, message: "Invalid data" });
+    }
+
+    let productData = [];
+
+    // Calculate Amount using Items
+    let amount = await items.reduce(async (acc, item) => {
+      const product = await Product.findById(item.product);
+      productData.push({
+        name: product.name,
+        price: product.offerPrice,
+        quantity: item.quantity,
+      });
+      return (await acc) + product.offerPrice * item.quantity;
+    }, 0);
+
+    // Add Tax Charge (2%)
+    amount += Math.floor(amount * 0.02);
+    const order = await Order.create({
+      userId,
+      items,
+      amount,
+      address,
+      paymentType: "Online",
+    });
+
+    // Stripe Gateway Initialise
+    const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
+
+    // create line items for stripe
+    const line_items = productData.map((item) => {
+      return {
+        price_data: {
+          currency: "inr",
+          product_data: {
+            name: item.name,
+          },
+          unit_amount: Math.floor(item.price + item.price * 0.02) * 100,
+        },
+        quantity: item.quantity,
+      };
+    });
+
+    // create session
+    const session = await stripeInstance.checkout.sessions.create({
+      line_items,
+      mode: "payment",
+      success_url: `${origin}/loader?next=my-orders`,
+      cancel_url: `${origin}/cart`,
+      metadata: {
+        orderId: order._id.toString(),
+        userId,
+      },
+    });
+
+    return res.json({ success: true, url: session.url });
+  } catch (error) {
+    console.error(error.message);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// Stripe Webhooks to verify payment actions : /stripe
+
+export const stripeWebhooks = async (req, res) => {
+  // Stripe Gateway Initialise
+  const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
+
+  const sig = request.headers["stripe-signature"];
+  let event;
+
+  try {
+    event = stripeInstance.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOKS_SECRET
+    );
+  } catch (error) {
+    res.status(400).send(`Webhook Error: ${error.message}`);
+  }
+
+  // Handle the event
+  switch (event.type) {
+    case "payment_intent.succeeeded": {
+      const paymentIntent = event.data.object;
+      const paymentIntentId = paymentIntent.id;
+
+      // Getting Session Metadata
+      const session = await stripeInstance.checkout.sessions.list({
+        payment_intent: paymentIntentId,
+      });
+
+      const { orderId, userId } = session.data[0].metadata;
+
+      // Mark Payment as Paid
+      await Order.findByIdAndUpdate(orderId, { isPaid: true });
+
+      // Clear Cart Data
+      await User.findByIdAndUpdate(userId, { cartItems: {} });
+      break;
+    }
+
+    case "payment_intent.payment_failed": {
+      const paymentIntent = event.data.object;
+      const paymentIntentId = paymentIntent.id;
+
+      // Getting Session Metadata
+      const session = await stripeInstance.checkout.sessions.list({
+        payment_intent: paymentIntentId,
+      });
+
+      const { orderId } = session.data[0].metadata;
+      await Order.findByIdAndDelete(orderId);
+      break;
+    }
+    default: {
+      console.error(`Unhandled event type ${event.type}`);
+      break;
+    }
+  }
+  res.json({ received: true });
 };
 
 //  Get Order by User ID : /api/order/user
