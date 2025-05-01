@@ -24,12 +24,20 @@ await connectCloudinary();
 // CORS: allow multiple origins
 const allowedOrigins = ["https://green-cart-frontend-eight.vercel.app"];
 
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+};
+
+// Apply CORS before any routes or middleware
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // Handle preflight
 
 // Middleware Configuration
 app.use(express.json());
