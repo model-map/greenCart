@@ -24,7 +24,7 @@ const authSeller = async (req, res, next) => {
     try {
       const tokenDecode = jwt.verify(sellerToken, process.env.JWT_SECRET);
       if (tokenDecode.email === process.env.SELLER_EMAIL) {
-        req.body.sellerEmail = tokenDecode.email;
+        // req.body.sellerEmail = tokenDecode.email;
         next();
       } else {
         return { success: false, message: "Not Authorised" };

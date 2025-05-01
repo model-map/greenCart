@@ -1,38 +1,28 @@
 import { useEffect, useState } from "react";
 import { assets, dummyOrders } from "../../assets/assets";
 import { useAppContext } from "../../context/AppContext";
+import toast from "react-hot-toast";
 
 const Orders = () => {
-  const { currency } = useAppContext();
+  const { currency, axios } = useAppContext();
   const [orders, setOrders] = useState([]);
 
   const fetchOrders = async () => {
-    setOrders(dummyOrders);
+    try {
+      const { data } = await axios.get("/api/order/seller");
+      if (data.success) {
+        setOrders(data.orders);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   useEffect(() => {
-    setOrders(dummyOrders);
+    fetchOrders();
   }, []);
-
-  // const orders = [
-  //   {
-  //     id: 1,
-  //     items: [{ product: { name: "Nike Air Max 270" }, quantity: 1 }],
-  //     address: {
-  //       firstName: "John",
-  //       lastName: "Doe",
-  //       street: "123 Main St",
-  //       city: "New York",
-  //       state: "NY",
-  //       zipcode: "10001",
-  //       country: "USA",
-  //     },
-  //     amount: 320.0,
-  //     paymentType: "Credit Card",
-  //     orderDate: "10/10/2022",
-  //     isPaid: true,
-  //   },
-  // ];
 
   return (
     <div className="no-scrollbar flex-1 h-[95vh] overflow-y-scroll">

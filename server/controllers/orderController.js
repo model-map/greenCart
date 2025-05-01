@@ -56,23 +56,18 @@ It begins by extracting the `userId` from the request body. Using this `userId`,
 The retrieved orders are then enriched with related product and address details through the `.populate()` method. The results are sorted in descending order based on their creation date. If successful, the function responds with a JSON object containing the success status and the list of orders.
 
 In case of an error during execution, the function logs the error message and responds with a JSON object indicating failure along with the error message.
-
 ------------------------------------------------------- */
 export const getUserOrders = async (req, res) => {
   try {
     const { userId } = req.body;
     const orders = await Order.find({
       userId,
-      $or: [
-        {
-          paymentType: "COD",
-          isPaid: true,
-        },
-      ],
+      $or: [{ paymentType: "COD" }, { isPaid: true }],
     })
       .populate("items.product address")
       .sort({ createdAt: -1 });
-
+    console.log(userId);
+    console.log(orders);
     res.json({ success: true, orders });
   } catch (error) {
     console.error(error.message);
@@ -84,10 +79,12 @@ export const getUserOrders = async (req, res) => {
 export const getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find({
-      $or: {
-        paymentType: "COD",
-        isPaid: true,
-      },
+      $or: [
+        {
+          paymentType: "COD",
+        },
+        { isPaid: true },
+      ],
     })
       .populate("items.product address")
       .sort({ createdAt: -1 });

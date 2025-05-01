@@ -9,5 +9,18 @@ In summary, `multer` acts as a bridge to handle the initial file upload and make
 ------------------------------------------------------- */
 
 import multer from "multer";
+import path from "path";
 
-export const upload = multer({ storage: multer.diskStorage });
+const multerUploads = path.join(process.cwd(), "utils", "multerUploads");
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, multerUploads);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, file.originalname + "-" + uniqueSuffix);
+  },
+});
+
+export const upload = multer({ storage });

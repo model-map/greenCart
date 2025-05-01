@@ -26,7 +26,7 @@ import {
 
 const productRouter = express.Router();
 
-productRouter.post("/add", authSeller, upload.array("images"), addProduct);
+productRouter.post("/add", authSeller, upload.array(["images"]), addProduct);
 productRouter.get("/list", productList);
 productRouter.get("/id", productById);
 productRouter.post("/stock", authSeller, changeStock);

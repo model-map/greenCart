@@ -47,6 +47,20 @@ export const AppContextProvider = ({ children }) => {
 
   const currency = import.meta.env.VITE_CURRENCY;
 
+  // Fetch User Auth status, user data and cartItems
+
+  const fetchUser = async () => {
+    try {
+      const { data } = await axios.get("/api/user/is-auth");
+      if (data.success) {
+        setUser(data.user);
+        setCartItems(data.user.cartItems);
+      }
+    } catch {
+      setUser(null);
+    }
+  };
+
   // Fetch Seller Status
 
   const fetchSeller = async () => {
@@ -138,8 +152,30 @@ export const AppContextProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
     fetchSeller();
   }, []);
+
+  // Update Database Cart Items
+  useEffect(() => {
+    const updateCart = async () => {
+      try {
+        const { data } = await axios.post("/api/cart/update", { cartItems });
+        if (!data.success) {
+          toast.error(data.message);
+        }
+      } catch (error) {
+        toast.error(error.message);
+      }
+    };
+
+    if (user) {
+      updateCart();
+    }
+  }, [cartItems]);
 
   const value = {
     navigate,
@@ -153,6 +189,7 @@ export const AppContextProvider = ({ children }) => {
     fetchProducts,
     currency,
     cartItems,
+    setCartItems,
     addToCart,
     updateCartItem,
     removeFromCart,
