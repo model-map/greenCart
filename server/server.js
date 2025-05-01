@@ -22,20 +22,21 @@ await connectDB();
 await connectCloudinary();
 
 // CORS: allow multiple origins
-const allowedOrigins = ["https://green-cart-frontend-eight.vercel.app/"];
+const allowedOrigins = ["https://green-cart-frontend-eight.vercel.app"];
 
-// Stripe Webhooks
-app.post("/stripe", express.raw({ type: "application/json" }, stripeWebhooks));
-
-// Middleware Configuration
-app.use(express.json());
-app.use(cookieParser());
 app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
   })
 );
+
+// Middleware Configuration
+app.use(express.json());
+app.use(cookieParser());
+
+// Stripe Webhooks
+app.post("/stripe", express.raw({ type: "application/json" }, stripeWebhooks));
 
 app.get("/", (req, res) => {
   res.send("API is Working");
